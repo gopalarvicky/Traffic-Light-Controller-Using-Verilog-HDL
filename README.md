@@ -31,7 +31,9 @@ Capture screenshots of the waveform and save the simulation logs to include in y
 
 Verilog Code for Traffic Light Controller
 ```verilog
-// traffic_light_controller.v module traffic_light_controller ( input wire clk, input wire reset, output reg [2:0] lights // 3-bit output: [2]=Red, [1]=Yellow, [0]=Green ); // Define states typedef enum reg [1:0] { GREEN = 2'b00, YELLOW = 2'b01, RED = 2'b10 } state_t;
+// traffic_light_controller.v
+module traffic_light_controller ( input wire clk, input wire reset, output reg [2:0] lights // 3-bit output: [2]=Red, [1]=Yellow, [0]=Green ); // Define states
+typedef enum reg [1:0] { GREEN = 2'b00, YELLOW = 2'b01, RED = 2'b10 } state_t;
 
 state_t current_state, next_state;
 reg [3:0] counter;  // Timer counter
