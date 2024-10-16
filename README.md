@@ -31,100 +31,91 @@ Capture screenshots of the waveform and save the simulation logs to include in y
 
 Verilog Code for Traffic Light Controller
 ```verilog
-// traffic_light_controller.v
-module traffic_light_controller ( input wire clk, input wire reset, output reg [2:0] lights // 3-bit output: [2]=Red, [1]=Yellow, [0]=Green ); // Define states
-typedef enum reg [1:0] { GREEN = 2'b00, YELLOW = 2'b01, RED = 2'b10 } state_t;
+module traffic_light_controller(
+    input clk,              // Clock signal
+    input reset,            // Reset signal
+    output reg [2:0] light  // 3-bit output for lights: [Red, Yellow, Green]
+);
+    // State encoding using localparam
+    localparam GREEN  = 2'b00, 
+               YELLOW = 2'b01, 
+               RED    = 2'b10;
 
-state_t current_state, next_state;
-reg [3:0] counter;  // Timer counter
-
-// State transition based on counter
-always @(posedge clk or posedge reset) begin
-    if (reset) begin
-        current_state <= GREEN;
-        counter <= 0;
-    end else begin
-        if (counter == 4'd9) begin
-            current_state <= next_state;
-            counter <= 0;
+reg [1:0] current_state, next_state;
+    reg [31:0] timer;       // 32-bit timer to count clock cycles
+    // Timing parameters using localparam
+    localparam GREEN_TIME  = 5;   // 5 seconds for green light
+    localparam YELLOW_TIME = 2;   // 2 seconds for yellow light
+    localparam RED_TIME    = 5;   // 5 seconds for red light
+    // State transition logic (combinational)
+    always @(*) begin
+        case (current_state)
+            GREEN:  if (timer >= GREEN_TIME) next_state = YELLOW;
+                    else next_state = GREEN;
+            YELLOW: if (timer >= YELLOW_TIME) next_state = RED;
+                    else next_state = YELLOW;
+            RED:    if (timer >= RED_TIME) next_state = GREEN;
+                    else next_state = RED;
+            default: next_state = RED; // Default to RED if undefined state
+        endcase
+    end
+    // Output logic (combinational)
+    always @(*) begin
+        case (current_state)
+            GREEN:  light = 3'b001;  // Green on
+            YELLOW: light = 3'b010;  // Yellow on
+            RED:    light = 3'b100;  // Red on
+            default: light = 3'b100; // Default to Red
+        endcase
+    end
+    // State and timer update (sequential)
+    always @(posedge clk or posedge reset) begin
+        if (reset) begin
+            current_state <= RED;   // Initial state
+            timer <= 0;
         end else begin
-            counter <= counter + 1;
+            if (timer >= (current_state == GREEN  ? GREEN_TIME :
+                          current_state == YELLOW ? YELLOW_TIME : RED_TIME)) begin
+                current_state <= next_state;
+                timer <= 0; // Reset timer on state change
+            end else begin
+                timer <= timer + 1; // Increment timer
+            end
         end
     end
-end
-
-// Next state logic and output control
-always @(*) begin
-    case (current_state)
-        GREEN: begin
-            lights = 3'b001;  // Green light on
-            next_state = YELLOW;
-        end
-        YELLOW: begin
-            lights = 3'b010;  // Yellow light on
-            next_state = RED;
-        end
-        RED: begin
-            lights = 3'b100;  // Red light on
-            next_state = GREEN;
-        end
-        default: begin
-            lights = 3'b000;  // All lights off
-            next_state = GREEN;
-        end
-    endcase
-end
 endmodule
 ```
 Testbench for Traffic Light Controller
 ```verilog
-// traffic_light_controller_tb.v `timescale 1ns / 1ps
-
 module traffic_light_controller_tb;
-
-// Inputs to the module (reg type in testbench)
-reg clk;
-reg reset;
-
-// Outputs from the module (wire type in testbench)
-wire [2:0] lights;
-
-// Instantiate the traffic_light_controller module
-traffic_light_controller uut (
-    .clk(clk),
-    .reset(reset),
-    .lights(lights)
-);
-
-// Clock generation: 10ns period
-always begin
-    #5 clk = ~clk;  // Toggle clock every 5 time units (10 ns clock period)
-end
-
-// Initial block to apply stimulus (inputs)
-initial begin
-    // Initialize inputs
-    clk = 0;
-    reset = 1;  // Start with reset active
-    
-    // Wait for a few cycles with reset asserted
-    #20;
-    reset = 0;  // Release reset after 20ns
-
-    // Let the simulation run for a while
-    #1000;
-
-    // End simulation
-    $finish;
-end
-
-// Monitor the outputs during the simulation
-initial begin
-    // Print header
-    $display("Time\tReset\tLights");
-    $monitor("%d\t%b\t%b", $time, reset, lights);
-end
+    // Signals for DUT (Device Under Test)
+    reg clk;
+    reg reset;
+    wire [2:0] light;
+    // Instantiate the traffic light controller
+    traffic_light_controller dut (
+        .clk(clk),
+        .reset(reset),
+        .light(light)
+    );
+    // Clock generation
+    always #1 clk = ~clk;  // Toggle clock every 1 time unit
+    // Test procedure
+    initial begin
+        // Initialize signals
+        clk = 0;
+        reset = 1;
+        // Apply reset for a few cycles
+        #2 reset = 0;   // De-assert reset after 2 time units
+        // Run the simulation for 20 time units (for example)
+        #20 $finish;
+    end
+    // Monitor output
+    initial begin
+        $monitor("Time: %0t | Reset: %b | Lights: %b (Red-Yellow-Green)", $time, reset, light);
+    end
 endmodule
+
 ```
 ![image](https://github.com/user-attachments/assets/31a7aa3b-44d9-4144-b0f4-1f5abba78011)
 
